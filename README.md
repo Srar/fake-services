@@ -12,3 +12,14 @@ fake-services会自动扫描本机已监听的端口不做虚假二次握手.
 # 依赖
 * pcap
 * libnet
+
+# 使用
+
+```
+git clone https://github.com/Srar/fake-services.git
+cd fake-services
+./build.sh
+# ens160 应当替换成使用机器上网卡名
+./fakeservice ens160
+```
+iptables应当设置为直接丢弃未被ACCEPT的端口包. 不做ICMP错误响应.
