@@ -20,7 +20,8 @@ uint8_t openPorts[65536];
 
 size_t lastIndexOf(char *str, char target)
 {
-    for (int i = strlen(str); i != 0; i--)
+    int i;
+    for (i = strlen(str); i != 0; i--)
     {
         if (str[i] == target)
             return i;
@@ -32,7 +33,8 @@ void *flushOpenPorts()
 {
     while (1)
     {
-        for (int i = 0; i < 65536; i++)
+        int i;
+        for (i = 0; i < 65536; i++)
         {
             openPorts[i] = 0;
         }
