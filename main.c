@@ -15,8 +15,9 @@
 #include <arpa/inet.h>
 
 #define SNAP_LEN 65535
+#define PORTS 65536
 
-uint8_t openPorts[65536];
+uint8_t openPorts[PORTS];
 
 size_t lastIndexOf(char *str, char target)
 {
@@ -34,10 +35,7 @@ void *flushOpenPorts()
     while (1)
     {
         int i;
-        for (i = 0; i < 65536; i++)
-        {
-            openPorts[i] = 0;
-        }
+        uint8_t tempOpenPorts[PORTS] = { 0 };
 
         FILE *fp;
         char *line = malloc(1024);
@@ -63,12 +61,17 @@ void *flushOpenPorts()
             sscanf(line, "%*s %*s %*s %[^ ]", listenInfo);
             size_t addressEnd = lastIndexOf(listenInfo, ':');
             int port = atoi(listenInfo + addressEnd + 1);
-            openPorts[port] = 1;
+            tempOpenPorts[port] = 1;
+        }
+
+        for (i = 0; i < PORTS; i++)
+        {
+           openPorts[i] = tempOpenPorts[i];
         }
 
         pclose(fp);
         free(line);
-        sleep(15);
+        sleep(20);
     }
 }
 
@@ -117,7 +120,7 @@ void got_packet(void *args, const struct pcap_pkthdr *header, const void *packet
         20,                           /* TCP packet size */
         NULL,                         /* payload */
         0,                            /* payload size */
-        libnetHandler,               /* libnet handle */
+        libnetHandler,                /* libnet handle */
         0);
 
     libnet_build_ipv4(
@@ -132,15 +135,28 @@ void got_packet(void *args, const struct pcap_pkthdr *header, const void *packet
         ipHeader->ip_src.s_addr,      /* destination IP */
         NULL,                         /* payload */
         0,                            /* payload size */
-        libnetHandler,               /* libnet handle */
+        libnetHandler,                /* libnet handle */
         0);
 
     libnet_write(libnetHandler);
     printf("[%d.%d.%d.%d:%d] was scan port [%d].\n", ipSrc[0], ipSrc[1], ipSrc[2], ipSrc[3], sourcePort, destPort);
 }
 
+void printUsage() {
+    printf("Usage: %s [interface]\n", "fakeservice");
+	printf("\n");
+	printf("Options:\n");
+	printf("    interface    Listen on <interface> for send fake ACK packet.\n");
+	printf("\n");
+}
+
 int main(int argc, char **argv)
 {
+    if(argc <= 1) {
+        printUsage();
+        return -1;
+    }
+
     pthread_t flushPortsThreadId;
     pthread_create(&flushPortsThreadId, NULL, &flushOpenPorts, NULL);
 
@@ -156,6 +172,7 @@ int main(int argc, char **argv)
         printf("Couldn't get netmask for device %s: %s\n", interfaceName, errbuf);
         net = 0;
         mask = 0;
+        return -1;
     }
 
     printf("init pcap\n");
