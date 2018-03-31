@@ -66,7 +66,7 @@ void *flushOpenPorts()
 
         for (i = 0; i < PORTS; i++)
         {
-           openPorts[i] = tempOpenPorts[i];
+            openPorts[i] = tempOpenPorts[i];
         }
 
         pclose(fp);
@@ -101,23 +101,44 @@ void got_packet(void *args, const struct pcap_pkthdr *header, const void *packet
     const uint32_t *ipDstZ = &(ipHeader->ip_dst.s_addr);
     const uint8_t *ipDst = (const uint8_t *)ipDstZ;
 
-    if (openPorts[destPort] == 1)
+    uint16_t id = 0;
+    uint32_t seq = 0;
+    uint32_t ack = 0;
+    uint8_t flags = 0;
+
+    if (openPorts[destPort] == 1)  return;
+
+    if (tcpHeader->th_flags & TH_SYN && tcpHeader->th_ack == 0)
+    {
+        id = 0;
+        seq = 0;
+        ack = htonl(tcpHeader->th_seq) + 1;
+        flags = TH_SYN | TH_ACK;
+        printf("[%d.%d.%d.%d:%d] was scan port [%d].\n", ipSrc[0], ipSrc[1], ipSrc[2], ipSrc[3], sourcePort, destPort);   
+    }
+    else if (tcpHeader->th_flags & TH_FIN && tcpHeader->th_flags & TH_ACK)
+    {
+        id = htonl(tcpHeader->th_ack) + 1;
+        seq = htonl(tcpHeader->th_ack) + 1;
+        ack = htonl(tcpHeader->th_seq) + 1;
+        flags = TH_ACK;
+    }
+    else
+    {
         return;
-    if (!(tcpHeader->th_flags & TH_SYN))
-        return;
-    if(tcpHeader->th_ack != 0)
-        return;
+    }
+
 
     libnet_build_tcp(
         destPort,                     /* source port */
         sourcePort,                   /* destination port */
-        random(),                     /* sequence number */
-        htonl(tcpHeader->th_seq) + 1, /* acknowledgement num */
-        TH_SYN | TH_ACK,              /* control flags */
+        seq,                          /* sequence number */
+        ack,                          /* acknowledgement num */
+        flags,                        /* control flags */
         tcpHeader->th_win,            /* window size */
         0,                            /* checksum */
         0,                            /* urgent pointer */
-        20,                           /* TCP packet size */
+        LIBNET_TCP_H,                 /* TCP packet size */
         NULL,                         /* payload */
         0,                            /* payload size */
         libnetHandler,                /* libnet handle */
@@ -126,7 +147,7 @@ void got_packet(void *args, const struct pcap_pkthdr *header, const void *packet
     libnet_build_ipv4(
         LIBNET_IPV4_H + LIBNET_TCP_H, /* length */
         0,                            /* TOS */
-        random(),                     /* IP ID */
+        id,                           /* IP ID */
         0,                            /* IP Frag */
         64,                           /* TTL */
         IPPROTO_TCP,                  /* protocol */
@@ -138,21 +159,24 @@ void got_packet(void *args, const struct pcap_pkthdr *header, const void *packet
         libnetHandler,                /* libnet handle */
         0);
 
+
     libnet_write(libnetHandler);
-    printf("[%d.%d.%d.%d:%d] was scan port [%d].\n", ipSrc[0], ipSrc[1], ipSrc[2], ipSrc[3], sourcePort, destPort);
+    libnet_clear_packet(libnetHandler);
 }
 
-void printUsage() {
+void printUsage()
+{
     printf("Usage: %s [interface]\n", "fakeservice");
-	printf("\n");
-	printf("Options:\n");
-	printf("    interface    Listen on <interface> for send fake ACK packet.\n");
-	printf("\n");
+    printf("\n");
+    printf("Options:\n");
+    printf("    interface    Listen on <interface> for send fake ACK packet.\n");
+    printf("\n");
 }
 
 int main(int argc, char **argv)
 {
-    if(argc <= 1) {
+    if (argc <= 1)
+    {
         printUsage();
         return -1;
     }
@@ -176,7 +200,7 @@ int main(int argc, char **argv)
     }
 
     printf("init pcap\n");
-    pcapHandle = pcap_open_live(interfaceName, SNAP_LEN, 1, 1000, errbuf);
+    pcapHandle = pcap_open_live(interfaceName, SNAP_LEN, 1, 50, errbuf);
     if (pcapHandle == NULL)
     {
         printf("pcap_open_live dev:[%s] err:[%s]\n", interfaceName, errbuf);
