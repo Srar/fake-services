@@ -114,7 +114,7 @@ void got_packet(void *args, const struct pcap_pkthdr *header, const void *packet
         seq = 0;
         ack = htonl(tcpHeader->th_seq) + 1;
         flags = TH_SYN | TH_ACK;
-        printf("[%d.%d.%d.%d:%d] was scan port [%d].\n", ipSrc[0], ipSrc[1], ipSrc[2], ipSrc[3], sourcePort, destPort);   
+        printf("[%d.%d.%d.%d:%d] sniffed port [%d].\n", ipSrc[0], ipSrc[1], ipSrc[2], ipSrc[3], sourcePort, destPort);   
     }
     else if (tcpHeader->th_flags & TH_FIN && tcpHeader->th_flags & TH_ACK)
     {
