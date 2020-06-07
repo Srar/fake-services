@@ -70,7 +70,10 @@ func main() {
 
 		locker.Lock()
 		// 如果已经在黑名单内发送SYN, ACK伪造包
-		if blackList.Get(remoteIP) != nil {
+		if black := blackList.Get(remoteIP); black != nil {
+			black.(*Black).ExpireAt = time.Now().Add(time.Minute * 5)
+			blackList.Remove(remoteIP)
+			blackList.Add(remoteIP, black)
 			locker.Unlock()
 
 			l2 := layers.Ethernet{
